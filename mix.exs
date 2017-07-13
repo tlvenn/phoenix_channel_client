@@ -7,7 +7,7 @@ defmodule PhoenixChannelClient.Mixfile do
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     deps: deps()]
   end
 
   # Configuration for the OTP application
@@ -28,9 +28,9 @@ defmodule PhoenixChannelClient.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-      {:websocket_client, github: "sanmiguel/websocket_client", tag: "1.1.0"},
+      {:websocket_client, "~> 1.0"},
       {:phoenix, github: "phoenixframework/phoenix", only: :test},
-      {:poison, "~> 1.5", only: :test},
+      {:poison, "~> 2.0", only: :test},
       {:cowboy, "~> 1.0", only: :test}
     ]
   end

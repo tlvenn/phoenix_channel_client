@@ -9,8 +9,8 @@ defmodule Phoenix.Channel.Client.Server do
   end
 
   def join(pid, params \\ %{}, opts \\ []) do
-    Logger.debug "Call Join"
-    timeout =  opts[:timeout] || @default_timeout
+    Logger.debug("Call Join")
+    timeout = opts[:timeout] || @default_timeout
     GenServer.call(pid, {:join, params, timeout})
   end
 
@@ -23,7 +23,7 @@ defmodule Phoenix.Channel.Client.Server do
   end
 
   def push(pid, event, payload, opts \\ []) do
-    timeout =  opts[:timeout] || @default_timeout
+    timeout = opts[:timeout] || @default_timeout
     GenServer.call(pid, {:push, event, payload, timeout})
   end
 
@@ -31,21 +31,23 @@ defmodule Phoenix.Channel.Client.Server do
     socket = opts[:socket]
     topic = opts[:topic]
     socket.channel_link(socket, self, topic)
-    {:ok, %{
-      sender: sender,
-      socket: socket,
-      topic: topic,
-      join_push: nil,
-      join_timer: nil,
-      leave_push: nil,
-      pushes: [],
-      opts: opts,
-      state: :closed
-    }}
+
+    {:ok,
+     %{
+       sender: sender,
+       socket: socket,
+       topic: topic,
+       join_push: nil,
+       join_timer: nil,
+       leave_push: nil,
+       pushes: [],
+       opts: opts,
+       state: :closed
+     }}
   end
 
   def handle_call({:join, params, timeout}, from, %{socket: socket} = state) do
-    #Logger.debug "Join Channel: #{state.topic}"
+    # Logger.debug "Join Channel: #{state.topic}"
     push = socket.push(socket, state.topic, "phx_join", params)
     timer_ref = :erlang.start_timer(timeout, self(), push)
     {:reply, push, %{state | state: :joining, join_push: push, join_timer: timer_ref}}
@@ -53,13 +55,16 @@ defmodule Phoenix.Channel.Client.Server do
 
   def handle_call({:leave, opts}, _from, %{socket: socket} = state) do
     push = socket.push(socket, state.topic, "phx_leave", %{})
-    if opts[:brutal] == true do
-      #Logger.debug "Brutal Leave"
-      socket.channel_unlink(socket, self, state.topic)
-      chan_state = :closed
-    else
-      chan_state = :closing
-    end
+
+    chan_state =
+      if opts[:brutal] == true do
+        # Logger.debug "Brutal Leave"
+        socket.channel_unlink(socket, self, state.topic)
+        :closed
+      else
+        :closing
+      end
+
     {:reply, :ok, %{state | state: chan_state, leave_push: push}}
   end
 
@@ -70,15 +75,17 @@ defmodule Phoenix.Channel.Client.Server do
   end
 
   def handle_call({:cancel_push, push_ref}, _from, %{pushes: pushes} = state) do
-    {[{timer, _}], pushes} = Enum.partition(pushes, fn({_, %{ref: ref}}) ->
-      ref == push_ref
-    end)
+    {[{timer, _}], pushes} =
+      Enum.partition(pushes, fn {_, %{ref: ref}} ->
+        ref == push_ref
+      end)
+
     :erlang.cancel_timer(timer)
     {:reply, :ok, %{state | pushes: pushes}}
   end
 
   def handle_info({:trigger, "phx_error", reason, ref} = payload, state) do
-    IO.puts "Trigger Error: #{inspect reason}"
+    IO.puts("Trigger Error: #{inspect(reason)}")
     state.sender.handle_close({:closed, reason}, %{state | state: :errored})
   end
 
@@ -87,26 +94,43 @@ defmodule Phoenix.Channel.Client.Server do
     state.sender.handle_close({:closed, reason}, %{state | state: :closed})
   end
 
-  def handle_info({:trigger, "phx_reply", %{"status" => status} = payload, ref}, %{join_push: %{ref: join_ref}} = state) when ref == join_ref do
+  def handle_info(
+        {:trigger, "phx_reply", %{"status" => status} = payload, ref},
+        %{join_push: %{ref: join_ref}} = state
+      )
+      when ref == join_ref do
     :erlang.cancel_timer(state.join_timer)
-    state.sender.handle_reply({String.to_atom(status), :join, payload, ref}, %{state | state: :joined})
+
+    state.sender.handle_reply({String.to_atom(status), :join, payload, ref}, %{
+      state
+      | state: :joined
+    })
   end
 
-  def handle_info({:trigger, "phx_reply", %{"response" => response, "status" => status}, ref}, state) do
-    {[{timer_ref, push}], pushes} = Enum.partition(state.pushes, fn({_, push}) ->
-      push.ref == ref
-    end)
+  def handle_info(
+        {:trigger, "phx_reply", %{"response" => response, "status" => status}, ref},
+        state
+      ) do
+    {[{timer_ref, push}], pushes} =
+      Enum.partition(state.pushes, fn {_, push} ->
+        push.ref == ref
+      end)
+
     :erlang.cancel_timer(timer_ref)
-    state.sender.handle_reply({String.to_atom(status), push.topic, response, ref}, %{state | pushes: pushes})
+
+    state.sender.handle_reply({String.to_atom(status), push.topic, response, ref}, %{
+      state
+      | pushes: pushes
+    })
   end
 
   def handle_info({:trigger, event, payload, ref} = p, state) do
-    #Logger.debug "Trigger: #{inspect p}"
+    # Logger.debug "Trigger: #{inspect p}"
     state.sender.handle_in(event, payload, state)
   end
 
   def handle_info(:rejoin, state) do
-    IO.inspect "Channel Rejoin"
+    IO.inspect("Channel Rejoin")
     push = state.join_push
     push = state.socket.push(state.socket, push.topic, "phx_join", push.payload)
     {:noreply, %{state | state: :joining}}
@@ -115,21 +139,24 @@ defmodule Phoenix.Channel.Client.Server do
   # Push timer expired
 
   def handle_info({:timeout, timer, push}, %{join_push: push} = state) do
-    IO.puts "Timer Expired for Join: #{inspect push}"
+    IO.puts("Timer Expired for Join: #{inspect(push)}")
     state.sender.handle_reply({:timeout, :join}, state)
   end
+
   def handle_info({:timeout, timer, push}, %{pushes: pushes} = state) do
-    IO.puts "Timer Expired for Push: #{inspect pushes}"
+    IO.puts("Timer Expired for Push: #{inspect(pushes)}")
+
     partition =
-      Enum.partition(pushes, fn({ref, _}) ->
+      Enum.partition(pushes, fn {ref, _} ->
         ref == timer
       end)
 
     case partition do
       {[{_, push}], pushes} ->
         state.sender.handle_reply({:timeout, push.event, push.ref}, %{state | pushes: pushes})
-      _ -> {:noreply, state}
+
+      _ ->
+        {:noreply, state}
     end
   end
-
 end

@@ -8,12 +8,17 @@ defmodule Phoenix.Channel.Client.Adapters.WebsocketClient do
   end
 
   def close(socket) do
-    send socket, :close
+    send(socket, :close)
   end
 
   @doc false
   def init([socket, adapter_opts]) do
-    {:once, %{sender: socket, keepalive: adapter_opts[:keepalive], json_module: adapter_opts[:json_module]}}
+    {:once,
+     %{
+       sender: socket,
+       keepalive: adapter_opts[:keepalive],
+       json_module: adapter_opts[:json_module]
+     }}
   end
 
   # def init(opts, conn_state) do
@@ -39,8 +44,8 @@ defmodule Phoenix.Channel.Client.Adapters.WebsocketClient do
   forwards message to client sender process
   """
   def websocket_handle({:text, msg}, _conn_state, state) do
-    #Logger.debug "Handle in: #{inspect msg}"
-    send state.sender, {:receive, state.json_module.decode!(msg)}
+    # Logger.debug "Handle in: #{inspect msg}"
+    send(state.sender, {:receive, state.json_module.decode!(msg)})
     {:ok, state}
   end
 
@@ -48,27 +53,26 @@ defmodule Phoenix.Channel.Client.Adapters.WebsocketClient do
   Sends JSON encoded Socket.Message to remote WS endpoint
   """
   def websocket_info({:send, msg}, _conn_state, state) do
-    #Logger.debug "Handle out: #{inspect json!(msg)}"
+    # Logger.debug "Handle out: #{inspect json!(msg)}"
     {:reply, {:text, state.json_module.encode!(msg)}, state}
   end
 
   def websocket_info(:close, _conn_state, state) do
-    IO.inspect "Socket Closed"
-    send state.sender, {:closed, :normal}
+    IO.inspect("Socket Closed")
+    send(state.sender, {:closed, :normal})
     {:close, <<>>, "done"}
   end
 
   @doc false
   def ondisconnect(reason, state) do
-    IO.inspect "Socket Disconnected"
-    send state.sender, {:closed, reason}
+    IO.inspect("Socket Disconnected")
+    send(state.sender, {:closed, reason})
     {:close, :normal, state}
   end
 
   @doc false
   def websocket_terminate(reason, _req, state) do
-    send state.sender, {:closed, reason}
-    Logger.info(fn -> "Websocket connection closed with reason #{inspect reason}" end)
+    send(state.sender, {:closed, reason})
+    Logger.info(fn -> "Websocket connection closed with reason #{inspect(reason)}" end)
   end
-
 end

@@ -1,15 +1,17 @@
 defmodule Phoenix.Channel.Client do
   use Behaviour
 
-  defcallback handle_in(event :: String.t, payload :: map, state :: map) ::
-              {:noreply, state :: map}
+  defcallback(
+    handle_in(event :: String.t(), payload :: map, state :: map) :: {:noreply, state :: map}
+  )
 
-  defcallback handle_reply(reply :: Tuple.t, state :: map) ::
-              {:noreply, state :: map}
+  defcallback(handle_reply(reply :: Tuple.t(), state :: map) :: {:noreply, state :: map})
 
-  defcallback handle_close(reply :: Tuple.t, state :: map) ::
-              {:noreply, state :: map} |
-              {:stop, reason :: term, state :: map}
+  defcallback(
+    handle_close(reply :: Tuple.t(), state :: map) ::
+      {:noreply, state :: map}
+      | {:stop, reason :: term, state :: map}
+  )
 
   defmacro __using__(_opts) do
     quote do
@@ -34,7 +36,7 @@ defmodule Phoenix.Channel.Client do
       end
 
       def handle_in(event, payload, state) do
-        IO.inspect "Handle in: #{event} #{inspect payload}"
+        IO.inspect("Handle in: #{event} #{inspect(payload)}")
         {:noreply, state}
       end
 
@@ -43,7 +45,7 @@ defmodule Phoenix.Channel.Client do
       end
 
       def handle_close(payload, state) do
-        IO.inspect "Handle Close"
+        IO.inspect("Handle Close")
         {:noreply, state}
       end
 
@@ -56,7 +58,7 @@ defmodule Phoenix.Channel.Client do
   end
 
   def terminate(message, state) do
-    IO.puts "Terminate: #{inspect message}"
+    IO.puts("Terminate: #{inspect(message)}")
     :shutdown
   end
 end
